@@ -32,24 +32,29 @@ async function runAddMember(email) {
     input.focus();
     input.click();
     
-    // 클립보드 붙여넣기 방식이 브라우저 자동화에서 이벤트를 가장 잘 발생시킴
-    if (!document.execCommand('insertText', false, email)) {
-        input.value = email;
+    // 이메일 뒤에 콤마(,)를 붙이면 구글이 즉시 칩(Chip)으로 변환합니다. (가장 확실한 방법)
+    const emailWithComma = email + ", ";
+    if (!document.execCommand('insertText', false, emailWithComma)) {
+        input.value = emailWithComma;
         input.dispatchEvent(new Event('input', { bubbles: true }));
     }
     
     await wait(1500);
     
-    // 탭 키 발송 (칩 확정)
-    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', code: 'Tab', keyCode: 9, bubbles: true }));
-    input.dispatchEvent(new KeyboardEvent('keyup', { key: 'Tab', code: 'Tab', keyCode: 9, bubbles: true }));
+    // 포커스 해제(blur)로 자동완성 및 칩 생성을 완벽히 마무리
+    input.blur();
     await wait(1000);
     
     // 3. 하단 회원 추가 버튼 클릭 (모달 내)
     let confirmBtns = document.querySelectorAll('div[role="button"], button');
     let targetBtn = Array.from(confirmBtns).filter(b => b.innerText && b.innerText.includes("회원 추가")).pop();
     if(targetBtn) {
+        // 구글의 경우 단순 click()이 무시될 때가 있어 마우스 클릭 이벤트 전체를 쏴줍니다.
+        targetBtn.dispatchEvent(new MouseEvent('mousedown', {bubbles: true}));
+        targetBtn.dispatchEvent(new MouseEvent('mouseup', {bubbles: true}));
         targetBtn.click();
+    } else {
+        throw new Error("모달의 회원 추가 버튼을 찾지 못했습니다.");
     }
     
     await wait(2000);
