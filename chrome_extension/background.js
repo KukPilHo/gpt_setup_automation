@@ -5,6 +5,37 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     });
     return true; // 비동기 응답 대기
   }
+  
+  // 컨텐츠 스크립트에서 진짜 키보드 입력을 요청했을 때 처리 (Playwright 완벽 모방)
+  if (request.action === "typeAndTab") {
+    const tabId = sender.tab.id;
+    (async () => {
+      try {
+        // 1. 진짜 사람처럼 한 글자씩 타이핑
+        for(let i=0; i<request.text.length; i++) {
+            await new Promise(r => chrome.debugger.sendCommand({tabId}, "Input.dispatchKeyEvent", {
+                type: "char", text: request.text[i]
+            }, r));
+            await new Promise(r => setTimeout(r, 30));
+        }
+        await new Promise(r => setTimeout(r, 1000));
+        
+        // 2. 진짜 키보드 탭(Tab) 키 누르기
+        await new Promise(r => chrome.debugger.sendCommand({tabId}, "Input.dispatchKeyEvent", {
+            type: "keyDown", key: "Tab", code: "Tab", windowsVirtualKeyCode: 9, nativeVirtualKeyCode: 9
+        }, r));
+        await new Promise(r => chrome.debugger.sendCommand({tabId}, "Input.dispatchKeyEvent", {
+            type: "keyUp", key: "Tab", code: "Tab", windowsVirtualKeyCode: 9, nativeVirtualKeyCode: 9
+        }, r));
+        
+        sendResponse({success: true});
+      } catch(e) {
+        console.error("Debugger error:", e);
+        sendResponse({success: false});
+      }
+    })();
+    return true;
+  }
 });
 
 async function processJobs(tasks) {
@@ -29,6 +60,9 @@ async function processJobs(tasks) {
 
     // 화면 자동화 스크립트 실행
     try {
+      // Playwright 와 똑같은 하드웨어 제어 권한(디버거) 부여
+      await new Promise(r => chrome.debugger.attach({tabId: tab.id}, "1.3", r));
+      
       await chrome.scripting.executeScript({
         target: { tabId: tab.id },
         files: ['content.js']
@@ -40,6 +74,9 @@ async function processJobs(tasks) {
           resolve(res);
         });
       });
+      
+      // 디버거 연결 해제
+      await new Promise(r => chrome.debugger.detach({tabId: tab.id}, r));
     } catch(e) {
       console.error(e);
     }

@@ -31,27 +31,25 @@ async function runAddMember(email) {
     let input = await waitForElement('input[aria-label="그룹 멤버"]');
     input.focus();
     input.click();
+    await wait(500);
     
-    // 이메일 뒤에 콤마(,)를 붙이면 구글이 즉시 칩(Chip)으로 변환합니다. (가장 확실한 방법)
-    const emailWithComma = email + ", ";
-    if (!document.execCommand('insertText', false, emailWithComma)) {
-        input.value = emailWithComma;
-        input.dispatchEvent(new Event('input', { bubbles: true }));
-    }
+    // 🌟 핵심: 백그라운드(Debugger)를 통해 진짜 키보드로 타이핑 및 탭키를 누르도록 요청
+    await new Promise((resolve, reject) => {
+      chrome.runtime.sendMessage({
+        action: "typeAndTab",
+        text: email
+      }, (res) => {
+        if(res && res.success) resolve();
+        else reject(new Error("Debugger type failed"));
+      });
+    });
     
     await wait(1500);
-    
-    // 포커스 해제(blur)로 자동완성 및 칩 생성을 완벽히 마무리
-    input.blur();
-    await wait(1000);
     
     // 3. 하단 회원 추가 버튼 클릭 (모달 내)
     let confirmBtns = document.querySelectorAll('div[role="button"], button');
     let targetBtn = Array.from(confirmBtns).filter(b => b.innerText && b.innerText.includes("회원 추가")).pop();
     if(targetBtn) {
-        // 구글의 경우 단순 click()이 무시될 때가 있어 마우스 클릭 이벤트 전체를 쏴줍니다.
-        targetBtn.dispatchEvent(new MouseEvent('mousedown', {bubbles: true}));
-        targetBtn.dispatchEvent(new MouseEvent('mouseup', {bubbles: true}));
         targetBtn.click();
     } else {
         throw new Error("모달의 회원 추가 버튼을 찾지 못했습니다.");
