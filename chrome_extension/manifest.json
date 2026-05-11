@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "에이블런 그룹스 자동 추가",
+  "version": "1.0",
+  "description": "구글 그룹스에 자동으로 멤버를 추가합니다.",
+  "permissions": [
+    "tabs",
+    "scripting",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "https://groups.google.com/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": "icon.png"
+  },
+  "background": {
+    "service_worker": "background.js"
+  }
+}
